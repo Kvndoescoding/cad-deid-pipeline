@@ -1,0 +1,47 @@
+name: transform
+on:
+  workflow_dispatch:
+    inputs:
+      harvest_run_id: {description: "run id of the harvest workflow (mapping artifact)", required: true}
+      dest: {description: "gs://builders-machina-submissions-1120/teams/<team>/attempt-N/", required: true}
+permissions: {contents: read, actions: read}
+jobs:
+  transform:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    strategy:
+      fail-fast: false
+      max-parallel: 20
+      matrix: {shard: [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19]}
+    steps:
+      - uses: actions/checkout@v4
+      - run: bash ci/setup.sh
+      - uses: actions/download-artifact@v4
+        with: {name: mapping, path: /tmp/m, run-id: "${{ inputs.harvest_run_id }}", github-token: "${{ github.token }}"}
+      - env: {ART_KEY: "${{ secrets.ART_KEY }}"}
+        run: mkdir -p /work/w && bash ci/enc.sh d /tmp/m/mapping.enc /work/w/mapping.json
+      - run: python3 shard.py --manifest /work/manifest.tsv --shard ${{ matrix.shard }} --of 20 --dest /work/input 2>/dev/null | tail -2
+      - run: python3 run.py transform --input /work/input --work /work/w --out /work/out --scratch /work/scratch --jobs 4 | tail -1
+      - run: rm -rf /work/input
+      - env: {MACHINA_UPLOAD_TOKEN: "${{ secrets.MACHINA_UPLOAD_TOKEN }}"}
+        run: python3 upload.py --dest "${{ inputs.dest }}" --corpus /work/out/corpus --workers 32 --no-resume | tail -3
+      - env: {ART_KEY: "${{ secrets.ART_KEY }}"}
+        run: bash ci/enc.sh e /work/w/notes.json /work/notes-${{ matrix.shard }}.enc
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: {name: "notes-${{ matrix.shard }}", path: "/work/notes-${{ matrix.shard }}.enc", retention-days: 7}
+  finish:
+    needs: transform
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with: {pattern: "notes-*", path: /tmp/n, merge-multiple: true}
+      - env: {ART_KEY: "${{ secrets.ART_KEY }}", MACHINA_UPLOAD_TOKEN: "${{ secrets.MACHINA_UPLOAD_TOKEN }}"}
+        run: |
+          for f in /tmp/n/*.enc; do bash ci/enc.sh d "$f" "${f%.enc}.json"; done
+          python3 run.py mergenotes --work /tmp/w --parts /tmp/n/*.json
+          mkdir -p /tmp/out && python3 run.py readme --work /tmp/w --out /tmp/out
+          mkdir -p /tmp/code && git archive HEAD | tar -x -C /tmp/code
+          python3 upload.py --dest "${{ inputs.dest }}" --code /tmp/code --readme /tmp/out/README.txt --no-resume | tail -3

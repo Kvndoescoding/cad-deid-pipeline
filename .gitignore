@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+work/
+out/
+input/
+sample/
+scratch/
+manifest.tsv

@@ -1,0 +1,37 @@
+name: harvest
+on: workflow_dispatch
+permissions: {contents: read, actions: read}
+jobs:
+  harvest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    strategy:
+      fail-fast: false
+      max-parallel: 20
+      matrix: {shard: [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19]}
+    steps:
+      - uses: actions/checkout@v4
+      - run: bash ci/setup.sh
+      - run: python3 shard.py --manifest /work/manifest.tsv --shard ${{ matrix.shard }} --of 20 --dest /work/input 2>/dev/null | tail -2
+      - run: python3 run.py harvest --input /work/input --work /work/w --scratch /work/scratch --jobs 4 | tail -1
+      - env: {ART_KEY: "${{ secrets.ART_KEY }}"}
+        run: bash ci/enc.sh e /work/w/candidates.tsv /work/cand-${{ matrix.shard }}.enc
+      - uses: actions/upload-artifact@v4
+        with: {name: "cand-${{ matrix.shard }}", path: "/work/cand-${{ matrix.shard }}.enc", retention-days: 7}
+  mapping:
+    needs: harvest
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 -m pip install -q -r requirements.txt
+      - uses: actions/download-artifact@v4
+        with: {pattern: "cand-*", path: /tmp/c, merge-multiple: true}
+      - env: {ART_KEY: "${{ secrets.ART_KEY }}"}
+        run: |
+          for f in /tmp/c/*.enc; do bash ci/enc.sh d "$f" "${f%.enc}.tsv"; done
+          python3 run.py merge --work /tmp/w --parts /tmp/c/*.tsv
+          python3 run.py mapping --work /tmp/w
+          bash ci/enc.sh e /tmp/w/mapping.json /tmp/mapping.enc
+          bash ci/enc.sh e /tmp/w/candidates.tsv /tmp/candidates.enc
+      - uses: actions/upload-artifact@v4
+        with: {name: mapping, path: "/tmp/mapping.enc\n/tmp/candidates.enc", retention-days: 14}
