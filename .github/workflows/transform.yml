@@ -5,6 +5,7 @@ on:
       harvest_run_id: {description: "run id of the harvest workflow (mapping artifact)", required: true}
       dest: {description: "gs://builders-machina-submissions-1120/teams/<team>/attempt-N/", required: true}
 permissions: {contents: read, actions: read}
+defaults: {run: {shell: bash}}
 jobs:
   transform:
     runs-on: ubuntu-latest

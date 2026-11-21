@@ -1,6 +1,7 @@
 name: harvest
 on: workflow_dispatch
 permissions: {contents: read, actions: read}
+defaults: {run: {shell: bash}}
 jobs:
   harvest:
     runs-on: ubuntu-latest

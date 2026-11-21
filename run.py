@@ -278,14 +278,12 @@ def cmd_merge(a):
     for part in a.parts:
         with open(part, encoding="utf-8") as fh:
             for line in fh:
-                v, k, c, n, w = line.rstrip("
-").split("	", 4)
+                v, k, c, n, w = line.rstrip("\n").split("\t", 4)
                 agg[(v, k)] += int(c); nf[(v, k)] += int(n); where.setdefault((v, k), w)
     os.makedirs(a.work, exist_ok=True)
     with open(os.path.join(a.work, "candidates.tsv"), "w", encoding="utf-8") as fh:
         for key, c in sorted(agg.items(), key=lambda x: -nf[x[0]]):
-            fh.write(f"{key[0]}	{key[1]}	{c}	{nf[key]}	{where[key]}
-")
+            fh.write(f"{key[0]}\t{key[1]}\t{c}\t{nf[key]}\t{where[key]}\n")
     print(f"merged {len(a.parts)} parts: {len(agg)} candidates")
 
 
