@@ -20,7 +20,9 @@ jobs:
       - uses: actions/download-artifact@v4
         with: {name: mapping, path: /tmp/m, run-id: "${{ inputs.harvest_run_id }}", github-token: "${{ github.token }}"}
       - env: {ART_KEY: "${{ secrets.ART_KEY }}"}
-        run: mkdir -p /work/w && bash ci/enc.sh d /tmp/m/mapping.enc /work/w/mapping.json
+        run: |
+          mkdir -p /work/w && bash ci/enc.sh d /tmp/m/candidates.enc /work/w/candidates.tsv
+          python3 run.py mapping --work /work/w
       - run: python3 shard.py --manifest /work/manifest.tsv --shard ${{ matrix.shard }} --of 20 --dest /work/input 2>/dev/null | tail -2
       - run: python3 run.py transform --input /work/input --work /work/w --out /work/out --scratch /work/scratch --jobs 4 | tail -1
       - run: rm -rf /work/input

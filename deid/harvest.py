@@ -269,7 +269,7 @@ def _ole(data: bytes, sink: Sink, src: str):
 
 
 PDF_LABEL_RE = re.compile(
-    r"(?:DRAWN|DRN|DRAFTER|DESIGNED|DESIGNER|DSGN|CHECKED|CHK|APPROVED|APPR|ENGINEER|ENG|AUTHOR|CREATED)"
+    r"\b(?:DRAWN|DRN|DRAFTER|DESIGNED|DESIGNER|DSGN|CHECKED|CHK|APPROVED|APPR|ENGINEER|ENG|AUTHOR|CREATED)\b"
     r"(?:\s*BY)?\s*[:.]?\s*\n?\s*([A-Z][A-Za-z'\-]+(?:[ .]+[A-Z][A-Za-z'\-]+){0,2})", re.I)
 PROP_RE = re.compile(r"(?:PROPERTY OF|COPYRIGHT|©|\(c\))\s*(?:\d{4}\s*)?([A-Z][A-Za-z0-9&.,' \-]{2,60}?)(?:\.|,|\n| IT | AND | ALL )", re.I)
 

@@ -84,14 +84,49 @@ def cmd_harvest(a):
 
 
 # ------------------------------------------------------------------ mapping
+PLACEHOLDER_RE = re.compile(r"^(ID_\d+|PERSON_[A-Z_ ]+|ORGANIZATION_[A-Z_]+|UNSPECIFIED[ A-Z]*|NONE|N/?A)$", re.I)
+SOFTWARE = {s.lower() for s in [
+    "Open CASCADE", "OpenCASCADE", "OCCT", "SPATIAL CORP", "Spatial Corp", "kicad StepUp", "ksu MCAD",
+    "ZWCAD Software Co.", "ZWCAD", "Ultimaker", "ezdxf", "mbed", "SDRC", "jedec", "youtu", "STEP Tools",
+    "ST-Developer", "Datakit", "CoreTechnologie", "TransMagic", "Elysium", "PDF Publisher", "Theorem",
+    "Open CASCADE STEP processor", "HOOPS", "Tech Soft", "Siemens PLM", "Dassault Systemes"]}
+
+
+ENGWORDS = set("""
+arrow block grow applied bureau barefoot astro steel aluminum aluminium brass copper bronze plastic nylon
+abs pla petg delrin acetal titanium stainless rubber wood glass carbon fiber fibre acrylic polycarbonate
+bolt nut screw washer bearing shaft gear spring bracket plate housing cover base frame mount assembly
+part drawing sheet scale title rev revision date material finish weight mass volume density thread
+metric imperial inch inches millimeter millimeters tolerance angle radius diameter length width height
+depth thickness hole slot chamfer fillet extrude revolve sketch body solid surface mesh model default
+front back left right top bottom side view section detail isometric checked drawn approved
+""".split())
+
+
 def _ok_key(v: str, kind: str) -> bool:
     if len(v) < 4 or len(v) > 100:
         return False
-    if v.lower() in H.NEVER:
+    if v.lower() in H.NEVER or v.lower() in SOFTWARE or PLACEHOLDER_RE.match(v):
         return False
     toks = TOKEN_RE.findall(v)
     if not toks:
         return False
+    if len(toks) == 1 and len(toks[0]) == len(v):
+        low1 = toks[0].lower()
+        if low1 in ENGWORDS or low1 in COMMON_TOP:
+            return False
+        if kind != "id" and low1 in COMMON:
+            return False
+    if any(t.lower() in SOFTWARE for t in toks) and kind != "phrase" and "@" not in v:
+        return False
+    if kind == "weak":
+        if len(toks) < 2 or len(toks) > 3 or len(v) < 6:
+            return False
+        for t in toks:
+            if not (t[:1].isupper() and (t[1:].islower() or t.isupper())) or len(t) < 3:
+                return False
+            if t.lower() in COMMON or t.lower() in GENERIC:
+                return False
     if all(t.isdigit() for t in toks):
         return False
     low = v.lower()
